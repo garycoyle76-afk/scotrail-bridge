@@ -1,46 +1,26 @@
 const axios = require('axios');
 
 module.exports = async (req, res) => {
-  // CORS Headers
+  // 1. Tell the phone it's okay to receive this data
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  // 2. Get the "RID" (Train ID) from your app
+  const { rid } = req.body || {};
+
+  // 3. The secret password (Basic Auth)
+  const auth = Buffer.from('coyleg@ymail.com:Conjas197684###').toString('base64');
 
   try {
-    // 1. Check if the app actually sent an RID
-    const { rid } = req.body || {};
-    if (!rid) {
-      return res.status(400).json({ error: "No RID provided in the request body." });
-    }
-
-    // 2. Your Rockshore Credentials
-    const auth = Buffer.from('coyleg@ymail.com:Conjas197684###').toString('base64');
-
-    // 3. The Actual Request to National Rail
+    // 4. Send the request to National Rail
     const response = await axios.post(
       'https://hsp-prod.rockshore.net/api/v1/serviceDetails',
       { rid: rid },
-      { 
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Basic ${auth}`
-        },
-        timeout: 10000 // Stop waiting after 10 seconds
-      }
+      { headers: { 'Authorization': `Basic ${auth}` } }
     );
-    
-    return res.status(200).json(response.data);
-
+    // 5. Send the train data back to your phone
+    res.status(200).json(response.data);
   } catch (error) {
-    // This tells us EXACTLY what happened (e.g., Wrong Password or Timeout)
-    const status = error.response ? error.response.status : 500;
-    const message = error.response ? error.response.data : error.message;
-    
-    return res.status(status).json({ 
-      error: "Rockshore API Connection Failed", 
-      details: message 
-    });
+    res.status(500).json({ error: "Fail", message: error.message });
   }
 };
